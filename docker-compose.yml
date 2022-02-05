@@ -1,0 +1,50 @@
+version: "3.8"
+services:
+  flatsearch:
+    container_name: flatsearch
+    build:
+      context: .
+      target: builder
+    command: reflex -r "\.go$$" -s -- sh -c "go run main.go search"
+    environment:
+      FLS_DATABASE_DSN: "postgresql://master:mysecretpassword@postgres/postgres?sslmode=disable"
+    volumes:
+      - .:/go/src/app
+      - go-cache:/.go-cache
+      - go-mod-cache:/.go-mod-cache
+    depends_on:
+      - postgres
+    networks:
+      - lab
+
+  postgres:
+    image: 'postgres:14'
+    container_name: postgres
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_USER: master
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - lab
+    ports:
+      - 1234:5432
+
+  goose:
+    image: 'artsafin/goose-migrations'
+    container_name: 'goose'
+    command: "postgres postgresql://master:mysecretpassword@postgres/postgres?sslmode=disable ${GOOSE_CMD:-status}"
+    volumes:
+      - ./migrations:/migrations
+    depends_on:
+      - postgres
+    networks:
+      - lab
+
+networks:
+  lab:
+
+volumes:
+  go-cache:
+  go-mod-cache:
+  postgres-data:
